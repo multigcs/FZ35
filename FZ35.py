@@ -84,11 +84,11 @@ class MyGui(Gtk.Application):
 				capacity = reading.split(",")[2]
 				distime = reading.split(",")[3]
 				self.timedata.append([timestamp, float(voltage.strip("V")), float(ampere.strip("A")), float(capacity.strip("Ah")), distime])
-				self.samples.set_markup("<span size=\"xx-large\">Samples: " + str(len(self.timedata)) + "</span>")
-				self.voltage.set_markup("<span size=\"xx-large\">Voltage: " + voltage + "</span>")
-				self.ampere.set_markup("<span size=\"xx-large\">Ampere: " + ampere + "</span>")
-				self.capacity.set_markup("<span size=\"xx-large\">Capacity: " + capacity + "</span>")
-				self.time.set_markup("<span size=\"xx-large\">Time: " + distime + "</span>")
+				self.samples.set_markup("<span size='xx-large'>Samples: " + str(len(self.timedata)) + "</span>")
+				self.voltage.set_markup("<span foreground='blue' size='xx-large'>Voltage: " + voltage + "</span>")
+				self.ampere.set_markup("<span foreground='red' size='xx-large'>Ampere: " + ampere + "</span>")
+				self.capacity.set_markup("<span foreground='#ab00ab' size='xx-large'>Capacity: " + capacity + "</span>")
+				self.time.set_markup("<span foreground='yellow' size='xx-large'>Time: " + distime + "</span>")
 				self.timeline.queue_draw()
 			else:
 				print(reading)
@@ -260,60 +260,134 @@ class MyGui(Gtk.Application):
 		box.add(menubutton)
 		return hb
 
+
+
 	def timeline_draw_event(self, da, cairo_ctx):
 		self.cw = self.timeline.get_allocation().width
 		self.ch = self.timeline.get_allocation().height
-		gw = self.cw - 50 - 50
+		gx = 150
+		gw = self.cw - gx - 50
 		gh = self.ch - 10 - 10
 		dl = len(self.timedata)
-		cairo_ctx.set_line_width(0.1)
+		if dl == 0:
+			return
+
+
+		cairo_ctx.set_source_rgb(0.0, 0.0, 0.0)
+		cairo_ctx.rectangle(gx - 1, 10 - 1, gw + 1, gh + 1)
+		cairo_ctx.fill()
+
+		# Grig
+		cairo_ctx.set_source_rgb(0.5, 0.5, 0.5)
+		cairo_ctx.set_line_width(0.5)
 		for n in range(0, 50, 5):
 			y = self.ch - 10 - int(n * gh / 50)
 			cairo_ctx.new_path()
-			cairo_ctx.move_to(50, y)
-			cairo_ctx.line_to(50 + gw, y)
+			cairo_ctx.move_to(gx, y)
+			cairo_ctx.line_to(gx + gw, y)
 			cairo_ctx.stroke()
+
+		# Voltage
 		cairo_ctx.set_line_width(1.0)
-		cairo_ctx.set_source_rgb(0, 0, 255)
+		cairo_ctx.set_source_rgb(0.0, 0.0, 1.0)
 		for n in range(0, 30 + 5, 5):
 			y = self.ch - 10 - int(n * gh / 30)
-			cairo_ctx.move_to(self.cw - 40, y + 3)
+			cairo_ctx.move_to(gx + gw + 10, y + 3)
 			cairo_ctx.show_text(str(n) + "V")
 			cairo_ctx.new_path()
-			cairo_ctx.move_to(self.cw - 50, y)
-			cairo_ctx.line_to(self.cw - 45, y)
+			cairo_ctx.move_to(gx + gw, y)
+			cairo_ctx.line_to(gx + gw + 5, y)
 			cairo_ctx.stroke()
 		cairo_ctx.new_path()
 		tn = 1;
 		for data in self.timedata:
-			x = 50 + tn * gw / dl
-			y = self.ch - 10 - int(data[1] * gh / 50.0)
+			x = gx + tn * gw / dl
+			y = self.ch - 10 - int(data[1] * gh / 30.0)
 			if  tn == 1:
-				cairo_ctx.move_to(50, y)
+				cairo_ctx.move_to(gx, y)
 			cairo_ctx.line_to(x, y)
 			tn = tn + 1
 		cairo_ctx.stroke()
-		cairo_ctx.set_source_rgb(255, 0, 0)
+
+		# Ampere
+		cairo_ctx.set_source_rgb(1.0, 0.0, 0.0)
 		for n in range(0, 50 + 10, 10):
 			y = self.ch - 10 - int(n * gh / 50)
 			cairo_ctx.move_to(10, y + 3)
 			cairo_ctx.show_text(str(n / 10.0) + "A")
 			cairo_ctx.new_path()
-			cairo_ctx.move_to(45, y)
-			cairo_ctx.line_to(50, y)
+			cairo_ctx.move_to(gx - 5, y)
+			cairo_ctx.line_to(gx, y)
 			cairo_ctx.stroke()
 		cairo_ctx.new_path()
 		tn = 1;
 		for data in self.timedata:
-			x = 50 + tn * gw / dl
+			x = gx + tn * gw / dl
 			y = self.ch - 10 - int(data[2] * gh / 5.0)
 			if  tn == 1:
-				cairo_ctx.move_to(50, y)
+				cairo_ctx.move_to(gx, y)
 			cairo_ctx.line_to(x, y)
 			tn = tn + 1
 		cairo_ctx.stroke()
-		cairo_ctx.set_source_rgb(128, 128, 128)
-		cairo_ctx.rectangle(50, 10, gw, gh)
+
+
+		# Capacity
+		capacity_max = (int(self.timedata[-1][3]) + 1) * 10
+		if capacity_max < 5:
+			capacity_max = 5
+		steps = int(capacity_max / 4)
+		scale = 10
+		cairo_ctx.set_source_rgb(1.0, 0.0, 1.0)
+		for n in range(0, int(capacity_max * scale) + steps, steps):
+			y = self.ch - 10 - int(n * gh / capacity_max)
+			cairo_ctx.move_to(50, y + 3)
+			cairo_ctx.show_text(str(n / scale) + "Ah")
+			cairo_ctx.new_path()
+			cairo_ctx.move_to(gx - 5, y)
+			cairo_ctx.line_to(gx, y)
+			cairo_ctx.stroke()
+		cairo_ctx.new_path()
+		tn = 1;
+		for data in self.timedata:
+			x = gx + tn * gw / dl
+			y = self.ch - 10 - int(data[3] * gh / capacity_max * scale)
+			if  tn == 1:
+				cairo_ctx.move_to(gx, y)
+			cairo_ctx.line_to(x, y)
+			tn = tn + 1
+		cairo_ctx.stroke()
+
+
+		# Time
+		time_max = int(self.timedata[-1][4].split(":")[0]) * 60 + int(self.timedata[-1][4].split(":")[1]) + 2
+		if time_max < 10:
+			time_max = 10
+		steps = int(time_max / 4)
+		scale = 1
+		cairo_ctx.set_source_rgb(1.0, 1.0, 0.0)
+		for n in range(0, time_max + steps, steps):
+			y = self.ch - 10 - int(n * gh / time_max)
+			cairo_ctx.move_to(100, y + 3)
+			cairo_ctx.show_text(str(int(n / scale)) + "min")
+			cairo_ctx.new_path()
+			cairo_ctx.move_to(gx - 5, y)
+			cairo_ctx.line_to(gx, y)
+			cairo_ctx.stroke()
+		cairo_ctx.new_path()
+		tn = 1;
+		for data in self.timedata:
+			x = gx + tn * gw / dl
+			time_m = int(data[4].split(":")[0]) * 60 + int(data[4].split(":")[1])
+			y = self.ch - 10 - int(time_m * gh / time_max * scale)
+			if  tn == 1:
+				cairo_ctx.move_to(gx, y)
+			cairo_ctx.line_to(x, y)
+			tn = tn + 1
+		cairo_ctx.stroke()
+
+
+		cairo_ctx.set_source_rgb(0.0, 0.0, 0.0)
+		cairo_ctx.rectangle(gx - 1, 10 - 1, gw + 1, gh + 1)
 		cairo_ctx.stroke()
 
 	def timeline_configure_event(self, da, event):
